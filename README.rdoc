@@ -1,0 +1,299 @@
+= Terry P's Rake based build infrastructure
+
+Getting software built can be a major pain, in fact, even with tools like CMake and SCons, I still end up cursing a blue streak every time I need large/complex *and* cross platform builds.
+
+That is what this is here to solve!
+
+== Basics
+
+The project is divided up into independent trees:
+ * Build
+ * Source
+ * Dist
+ * Vendor
+
+
+The Build and Dist directories are sub divided into a hierarchy of cpu/os directories. Where CPU and OS are the names reported by Platform::ARCH and Platform::OS. This is done so that files created during the build phase, and for distribution to end users, can exist side by side on a per CPU and Operating System combination.
+
+
+Your projects source code is expected to be in the Source directory, plus any additional third party projects (as needed) in Vendor. This makes rolling your own dependencies much easier (e.g. DLLs on Windows).
+
+
+The Rk directory stores build configuration and Ruby code. These can be loaded from your rakefiles via the usual means. At it's heart, is the Builder class and a library of utility functions.
+
+
+Settings for building your project are saved in Rk/conf/cpu.os.yml and will be used in conjunction with Build/cpu/os/ and Dist/cpu/os. In addition if it exists, Source/module/conf/cpu.os.yml will be loaded to override the global settings on a per-module basis.
+
+
+== Dependencies
+
+ 1. The code expects to execute as part of a rakefile.
+
+ 2. It depends on the Platform gem.
+
+ 3. I have only tested it with Ruby 1.8.7 and Ruby 1.9.1.
+
+== Generating Documentation
+
+Just run rdoc against the build files and open the index.html file inside the doc tree.
+
+
+== Using The Builder Classes
+
+
+First require the correct file from your rakefile, e.g.
+
+	require 'Rk/builder'
+
+Which will import classes named Paths, Builder, and VendorBuilder. Other builder classes should follow the same convention of supplying MyBuilder and MyVendorBuilder classes.
+
+
+The standard Builder class should be sufficant for most languages. It principally operates on the concept that each source file become some form of object file, which in turn will be combined to form some sort of executable or library file. This is the normal under most compiled languages such as C, C++, C#, Java, and Go.
+
+The VendorBuilder class is a simple extension of Builder, that understands how to use Vendor/ and Build/cpu/os/Vendor/ in place of Source/ and Build/cpu/os/.
+
+
+
+The builder class doesn't know much about rake, so it can be stripped down and used as a general purpose software builder independent of rake. Most of the rake specific elements of Builder, are provided for convience with rake, and are easily factored out if you wish to hack Builder into something else.
+
+
+=== Writing Rakefiles
+
+In general, you just create a suitable Builder object at the top of your rakefile, then use it.
+
+
+Take a look at the Examples/ directory for a small but detailed example of what a project  will look like.
+
+=== Common Methods
+
+==== Creating a Builder Instance
+
+The standard constructor takes the module name and language code, e.g.
+
+	b = Builder.new 'ModuleName', 'c'
+
+The module name is exactly as you expect but to understand the language code, see the "How It Works" section below. In order to allow build configuration and Builder to handle projects in multiple languages, the language code concept was considered essential when I wrote this build infrastructure.
+
+I love room for future extension ;).
+
+==== File Pathing
+
+You can obtain File.join() like behaviour for any of the associated directories, using the following methods:
+
+ * srcdir *args
+ * builddir *args
+ * distdir *args
+
+These make writing rake file and directory tasks much easier!
+
+Example:
+
+	b = Builder.new 'Cheeze', 'c'
+	b.srcdir 'Foo.c'
+	=> 'Source/Cheese/Foo.c'
+	b.builddir 'Foo.obj'
+	=> 'Build/x86/win32/Cheese/Foo.obj'
+	b.distdir 'Foo.exe'
+	=> 'Dist/x86/win32/Foo.exe'
+
+==== File Creation
+
+As I said previously, the standard Builder class  has the notion of an object, executable, and library. These are created using the make_whatever methods.
+
+  * make_object obj, src
+  * make_executable exe, objs
+  * make_library name, objs
+
+The make_object method compiles the file named by 'src' down into the object file named by 'obj'. Both make_executable and make_library do like wise, but expect objs to be an array of object file names.
+
+example:
+	sources = [ 'Foo.c', 'Bar.c' ]
+	objects = Array.new
+
+	for s in sources do
+	  o = s.sub /c$/, 'obj'
+	  b.make_object(b.builddir(o), b.srcdir(s))
+	  objects.push o
+	end
+
+	b.make_library(b.distdir('Cheese.dll'), objects)
+
+Will compile the files Foo.c and Bar.c into object files, and then create a library from them.
+
+
+Because not every programming language works the same way, these methods may not be sufficiant to build any project. For just this reason Builder can be subclassed to add aditional behaviour. In this particular example, since we are using the C programming language, we should prefer using the CBuilder class. CBuilder ads make_static_library and make_shared_library methods, among other things helpful for C like projects.
+
+
+==== Task Creation
+
+To make life with rake easier, you can create directory/file tasks through Builder. As a convience method, Builder provides an obj_file method that is anoglogus to rakes file method.
+
+	b.obj_file 'Foo.c'
+
+is equal to creating a file task to create "Foo.#{b.objext}" in the builddir() from a 'Foo.c' in the srcdir(). The object file will also be included in CLEAN. Like wise a directory task will be created to ensure that any intimidatory directories exist before creating the object file.
+
+
+Customized subclasses such as CBuilder, can easily provide similar methods such as CBuilder#shlib_file.
+
+
+=== How It Works
+
+If you recall, a little while a go, I said that the Builder class loads its build settings out of a YAML file, right? Well that is how *everything* works!
+
+When Rk/conf/cpu.os.yml and the optional Source/Module/conf/cpu.os.yml file are parsed, the Builder object configures itself using the supplied 'language code' as an index into the YAML configuration.
+
+By entering the language code, look ups will be done against that code where possible. For simplicity, I use the normal C/C++ makefile conventions, namely C and CXX prefixes and style. The actual language code can be anything you want, as long as it is a valid YAML mapping key.
+
+
+==== YAML Configuration Explained
+
+There are four top level sections:
+  1. programs
+  2. options
+  3. extensions
+  4. commands
+
+These can be Arbitrary but it's just what I have written Builder to understand.
+
+===== Programs
+
+The programs section is a simple mapping of program name to command to run. Here is an example for building a C program:
+
+	# x86.win32.yml
+	programs:
+	    ar: lib.exe /nologo
+	    cc: cl.exe /nologo /TC
+	    ld: link.exe /nologo
+
+This will be used to create the variables ${AR}, ${CC}, and ${LD} for later use in the commands section.
+
+===== Options
+
+In the options section, we define a nested set of mappings that define the arguments for the entries in the programs section. How this is done, is by defining a ${program name}flags mapping. What ${program name} is, is in fact irrelevent. I decided to just stick with the CFLAGS/CXXFLAGS convention that I'm accustomed to 8=). You could just as easily call it foobar instead.
+
+
+Each member of the ${program name}flags mapping is expected to be an abritary set of key: value pairs. This was done to allow adding a construct like ${CXXFLAGS:WARNINGS} at a later date. All of the fields of ${program name}flags will be joined and made available in the commands section under a name like ${CFLAGS} where ${program name} is c.
+
+Here is an example:
+
+	options:
+	    arflags:
+		general:
+		optimization: /LTCG
+		paths: /LIBPATH:Dist\x86\win32\lib
+		warnings: /WX
+	    cflags:
+		# not used
+	    cxxflags:
+		defines: /DIS_WINDOWS /DWITH_MSVC /DNDEBUG
+		general: /MD /EHsc
+		optimization: /Ox /GF /GL
+		paths: /IDist\x86\win32\include
+		warnings: /W3
+	    ldflags:
+		general:
+		optimization: /LTCG
+		paths: /LIBPATH:Dist\x86\win32\lib
+		warnings: /WX
+
+Which creates the variables ${ARFLAGS}, ${CFLAGS}, ${CXXFLAGS}, and ${LDFLAGS}. The various flags names were chosen to align with common conventiion. The sub keys were chosen for discriptive value.
+
+
+This is *very* flexible.
+
+===== Extensions
+
+Because this is all designed to be used with rake, and different implementations of C/C++ can differ in details, like whether it is objectfile.o or objectfile.obj, a section like this was neccessary for convenience
+
+
+The extension section consists of a map of language codes, which in turn map to a list of extensions. Most of this part is specific to a specialised Builder sub class. For simplicity, the standard Builder class only relies on the 'source' and 'object' extensions for the language code. These extension can be accessed with the Builder#objext and Builder#language methods. Sub classes such as CBuilder can provide other useful things, like a shlibext method.
+
+
+Here is an example for C++:
+
+	extensions:
+	    cxx:
+		source: cxx
+		object: obj
+		implib: lib
+		staticlib: lib
+		sharedlib: dll
+
+Which will equip CBuilder with the neccessary extension infomation
+
+==== Commands
+
+It would be rather hard to build software without being able to define what commands to use! Like the extensions section, the commands section uses the language code to find the correct commands.
+
+Each element for language code,, is expected to be a mapping of commands to command line expressions.  In fact the standard builder methods make_object, make_executable, and make_library expect the commands to be named exactly the same!
+
+
+Each top level key under programs and options can be accessed as ${KEY NAME}. Namely the cxxflags option becomes ${CXXFLAGS}, and so on. Any occurence of the variable in a command line expression, will be expanded before execution.
+		
+
+Example:
+
+	commands:
+	    cxx:
+		make_object: 
+		    ${CXX} ${CXXFLAGS} /Fo"${TARGET}" /c "${SOURCE}"
+		make_executable:
+		    ${CXX} ${CXXFLAGS} /Fe"${TARGET}" ${SOURCE}
+		make_library:
+		    ${CXXFLAGS} ${CXXFLAGS} /LD /Fe"${TARGET}" ${SOURCE} /link ${LDFLAGS}
+
+Would provide suitable instructions for Builder to compile objects using Visual C++. Again, in this case the CBuilder class should have been prefered.
+
+
+
+The ${TARGET} and ${SOURCE} variables are the first and second arguments to their respective functions. Exactly how this works is dependent on the command being invoked, see below.
+
+=== Extending Builder
+
+Most of the time, you'll simply want to add methods more specific to your language, for example a JavaBuilder sub class may wish to create make_jar() and jar_file() methods.
+
+
+I have made this as simple as possible.
+
+==== Advise
+
+When applicable, name your classes {Language Name}Builder and {Language Name}VendorBuilder, and save them in Rk\{language name}builder.rb.
+
+Create methods to look up any file extensions that may differ between implementations, like those used for object files and libraries. These should be in the form of {name}ext, for example shlibext.
+
+Create methods to generate file/directory tasks. These should generally follow the style of {name}_file. Such as shlib_file. It should return a list of rules so that it can be used in rake tasks like this:
+
+	
+	objs = [ b.buildir("A.#{b.objext}"), b.builddir("B.#{objext}") ]
+
+	task :link => [ 
+	  b.shlib_file(b.distdir("libMyLib.#{b.shlibext}"), objs)
+	]
+
+
+==== Example
+
+In order to write make_jar, we need to decide on what kind of method signature and command templating should be used. Perhaps we may want to use make_jar like this:
+
+	b.make_jar 'TicTacToe.jar', ['TicTacToe.class', 'audio', 'images']
+
+This could be written easily:
+
+	def make_jar jar, filenames
+	  make_thing('make_jar', '${SOURCE}' => filenames.join(' '),
+	                         '${TARGET}' => jar)
+	end
+
+make_thing is a private method of Builder, written for just such this occasion. It expects to be called with the name of a 'thing' to look up in commands. The second argument is a hash of variable => value pairs, which will be expanded accordingly.
+
+In our YAML configuration, we might create the following to go with this:
+
+	commands:
+	    java:
+	        make_object:
+	            # create a class file with javac
+	        make_jar:
+	            jar cvf "${TARGET}" "${SOURCE}"
+
+
+And bingo: job is done.
