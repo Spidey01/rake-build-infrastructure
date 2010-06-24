@@ -13,7 +13,7 @@ The project is divided up into independent trees:
  * Vendor
 
 
-The Build and Dist directories are sub divided into a hierarchy of cpu/os directories. Where CPU and OS are the names reported by Platform::ARCH and Platform::OS. This is done so that files created during the build phase, and for distribution to end users, can exist side by side on a per CPU and Operating System combination.
+The Build and Dist directories are sub divided into a hierarchy of cpu/os/toolset directories. Where CPU and OS are the names reported by Platform::ARCH and Platform::OS; TOOLSET is specified on the rake command line or defaulted by Builder. This is done so that files created during the build phase, and for distribution to end users, can exist side by side on a per CPU, Operating System, and Toolset combination.
 
 
 Your projects source code is expected to be in the Source directory, plus any additional third party projects (as needed) in Vendor. This makes rolling your own dependencies much easier (e.g. DLLs on Windows).
@@ -22,7 +22,7 @@ Your projects source code is expected to be in the Source directory, plus any ad
 The Rk directory stores build configuration and Ruby code. These can be loaded from your rakefiles via the usual means. At it's heart, is the Builder class and a library of utility functions.
 
 
-Settings for building your project are saved in Rk/conf/cpu.os.yml and will be used in conjunction with Build/cpu/os/ and Dist/cpu/os. In addition if it exists, Source/module/conf/cpu.os.yml will be loaded to override the global settings on a per-module basis.
+Settings for building your project are saved in Rk/conf/cpu.os.toolset.yml and will be used in conjunction with Build/cpu/os/toolset and Dist/cpu/os/toolset. In addition if it exists, Source/module/conf/cpu.os.toolset.yml will be loaded to override the global settings on a per-module basis.
 
 
 == Dependencies
@@ -50,11 +50,11 @@ Which will import classes named Paths, Builder, and VendorBuilder. Other builder
 
 The standard Builder class should be sufficant for most languages. It principally operates on the concept that each source file become some form of object file, which in turn will be combined to form some sort of executable or library file. This is the normal under most compiled languages such as C, C++, C#, Java, and Go.
 
-The VendorBuilder class is a simple extension of Builder, that understands how to use Vendor/ and Build/cpu/os/Vendor/ in place of Source/ and Build/cpu/os/.
+The VendorBuilder class is a simple extension of Builder, that understands how to use Vendor/ and Build/cpu/os/toolset/Vendor/ in place of Source/ and Build/cpu/os/toolset.
 
 
 
-The builder class doesn't know much about rake, so it can be stripped down and used as a general purpose software builder independent of rake. Most of the rake specific elements of Builder, are provided for convience with rake, and are easily factored out if you wish to hack Builder into something else.
+The builder class doesn't know much about rake, so the best parts can be stripped down and used as a general purpose software builder independent of rake. Most of the rake specific elements of Builder, are provided for convience with rake, and are easily factored out if you wish to hack Builder into something else. The file, directory, CLEAN, and CLOBBER portions of rake are used when applicable.
 
 
 === Writing Rakefiles
@@ -62,7 +62,7 @@ The builder class doesn't know much about rake, so it can be stripped down and u
 In general, you just create a suitable Builder object at the top of your rakefile, then use it.
 
 
-Take a look at the Examples/ directory for a small but detailed example of what a project  will look like.
+Take a look at the Examples branch for a small but detailed example of what a project will look like with this rake build infrastructure.
 
 === Common Methods
 
@@ -92,9 +92,9 @@ Example:
 	b.srcdir 'Foo.c'
 	=> 'Source/Cheese/Foo.c'
 	b.builddir 'Foo.obj'
-	=> 'Build/x86/win32/Cheese/Foo.obj'
+	=> 'Build/x86/win32/msvc/Cheese/Foo.obj'
 	b.distdir 'Foo.exe'
-	=> 'Dist/x86/win32/Foo.exe'
+	=> 'Dist/x86/win32/msvc/Foo.exe'
 
 ==== File Creation
 
@@ -106,17 +106,19 @@ As I said previously, the standard Builder class  has the notion of an object, e
 
 The make_object method compiles the file named by 'src' down into the object file named by 'obj'. Both make_executable and make_library do like wise, but expect objs to be an array of object file names.
 
+To cope with differing file extensions, various whatext methods are provided, e.g. Builder#objext().
+
 example:
 	sources = [ 'Foo.c', 'Bar.c' ]
 	objects = Array.new
 
 	for s in sources do
-	  o = s.sub /c$/, 'obj'
+	  o = s.sub /#{b.srcext}$/, b.objext
 	  b.make_object(b.builddir(o), b.srcdir(s))
 	  objects.push o
 	end
 
-	b.make_library(b.distdir('Cheese.dll'), objects)
+	b.make_library(b.distdir("Cheese#{b.shlibext}"), objects)
 
 Will compile the files Foo.c and Bar.c into object files, and then create a library from them.
 
@@ -140,7 +142,7 @@ Customized subclasses such as CBuilder, can easily provide similar methods such 
 
 If you recall, a little while a go, I said that the Builder class loads its build settings out of a YAML file, right? Well that is how *everything* works!
 
-When Rk/conf/cpu.os.yml and the optional Source/Module/conf/cpu.os.yml file are parsed, the Builder object configures itself using the supplied 'language code' as an index into the YAML configuration.
+When Rk/conf/cpu.os.toolset.yml and the optional Source/Module/conf/cpu.os.toolset.yml file are parsed, the Builder object configures itself using the supplied 'language code' as an index into the YAML configuration.
 
 By entering the language code, look ups will be done against that code where possible. For simplicity, I use the normal C/C++ makefile conventions, namely C and CXX prefixes and style. The actual language code can be anything you want, as long as it is a valid YAML mapping key.
 
@@ -159,10 +161,9 @@ These can be Arbitrary but it's just what I have written Builder to understand.
 
 The programs section is a simple mapping of program name to command to run. Here is an example for building a C program:
 
-	# x86.win32.yml
 	programs:
 	    ar: lib.exe /nologo
-	    cc: cl.exe /nologo /TC
+	    cc: cl.exe /nologo
 	    ld: link.exe /nologo
 
 This will be used to create the variables ${AR}, ${CC}, and ${LD} for later use in the commands section.
@@ -213,11 +214,12 @@ Here is an example for C++:
 
 	extensions:
 	    cxx:
-		source: cxx
-		object: obj
-		implib: lib
-		staticlib: lib
-		sharedlib: dll
+		source: .cxx
+		object: .obj
+		executable: .exe
+		implib: .lib
+		staticlib: .lib
+		sharedlib: .dll
 
 Which will equip CBuilder with the neccessary extension infomation
 
@@ -228,7 +230,7 @@ It would be rather hard to build software without being able to define what comm
 Each element for language code,, is expected to be a mapping of commands to command line expressions.  In fact the standard builder methods make_object, make_executable, and make_library expect the commands to be named exactly the same!
 
 
-Each top level key under programs and options can be accessed as ${KEY NAME}. Namely the cxxflags option becomes ${CXXFLAGS}, and so on. Any occurence of the variable in a command line expression, will be expanded before execution.
+Each top level key under programs, options, and template_vars sections can be accessed as ${KEY NAME}. Namely the cxxflags option becomes ${CXXFLAGS}, and so on. Any occurence of the variable in a command line expression, will be expanded before execution.
 		
 
 Example:
@@ -238,15 +240,53 @@ Example:
 		make_object: 
 		    ${CXX} ${CXXFLAGS} /Fo"${TARGET}" /c "${SOURCE}"
 		make_executable:
-		    ${CXX} ${CXXFLAGS} /Fe"${TARGET}" ${SOURCE}
-		make_library:
-		    ${CXXFLAGS} ${CXXFLAGS} /LD /Fe"${TARGET}" ${SOURCE} /link ${LDFLAGS}
+		    ${CXX} ${CXXFLAGS} /Fe"${TARGET}" ${SOURCE} ${LIBS_TEMPLATE}
+		make_shared_library:
+		    ${CXX} ${XXCFLAGS} /LD /Fe"${TARGET}" ${SOURCE} /link ${LDFLAGS}
 
 Would provide suitable instructions for Builder to compile objects using Visual C++. Again, in this case the CBuilder class should have been prefered.
 
 
 
 The ${TARGET} and ${SOURCE} variables are the first and second arguments to their respective functions. Exactly how this works is dependent on the command being invoked, see below.
+
+==== Template Variables
+
+The template_vars section is a solution to an irksome problem. Here is the rational behind it: Unix compilers expect arguments like -lname and some compilers (msvc) expect name.lib. For portability sake, we keep constructos like shlib_file simple (compiler agnostic), and implementing something like a GccBuilder and MsvcBuilder class are the **wrong** solutions.
+
+How I have solved this problem, is by simulating a minor level of indirection. 
+
+The Builder#make_executable method takes a list of libraries, e.g. ['libfoo', 'libbar'], and works the magic itself. It does this by expanding a special variable in called ${LIBS_TEMPLATES}
+
+
+YAML Example:
+
+	template_vars:
+	    libs_template:
+		${LIB}.lib
+
+For each library name passed, Builder#make_executable performs variable substitution against libs_template where ${LIB} is equal to the current library name. ${LIBS_TEMPLATE} is then substituted with the entire expansion.
+
+Example:
+
+	# YAML configuration for foocc
+	commands:
+		c:
+			make_executable:
+				foocc ${LIBS_TEMPLATES} ${TARGET} ${SOURCE} 
+	template_vars:
+		libs_template:
+			--link-to=${LIB}.do
+
+	# Rakefile using Builder#make_executable
+	exe = 'prog.exe'
+	objs = ['main.obj', 'options.obj', 'util.obj']
+	libs = [ 'libfoo', 'libbar' ]
+	b.make_executable(exe, objs, libs)
+
+	# executes this command
+	$ foocc --link-to=libfoo.do --link-to=libbar.do prog.exe main.obj options.obj util.obj 
+
 
 === Extending Builder
 
@@ -297,3 +337,10 @@ In our YAML configuration, we might create the following to go with this:
 
 
 And bingo: job is done.
+
+== TODO
+
+ * Example of an /.*ext/ method.
+ * Explain how Builder#make_thing / Builder#expand handle things like ${LIBS_TEMPLATE}, and give an example using a closure
+ * Better quality documentation
+ * More high level constructs on par with obj_file and cie.
