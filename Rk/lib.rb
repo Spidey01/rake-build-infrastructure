@@ -21,8 +21,7 @@ def load_r(*dirs)
   begin
     Find.find(*dirs) do |p| 
       if p =~ /Rakefile$/i or p =~ /Rakefile.rb$/
-        puts "P: #{p.to_s}"
-        load p.clone
+        load p
       end
     end
   rescue LoadError => msg
