@@ -1,0 +1,36 @@
+namespace :MyLib do
+  require 'Rk/cbuilder'
+
+  # Setup a builder for our module
+  b = CBuilder.new :MyLib, 'c'
+
+  # A simple list of source files
+  #
+  sources = [ 'msg.c' ]
+  objs = []
+  dll = b.distdir("MyLib#{b.shlibext}")
+
+  # Create file rules to compile each to an object file.
+  # Also build a list of those object files for easy use as a prerequisite.
+  #
+  for s in sources do
+    objs.push(b.obj_file(s))
+  end
+
+
+  task :default => [ :build, :link, :headers ]
+
+  # build task depends on the object files
+  #
+  multitask :build => objs
+
+  # Link the object files into a shared library
+  #
+  task :link => [ :build, b.shlib_file(dll, objs) ]
+
+  task :headers => b.install_headers(b.srcdir(), 
+                                     b.distdir('include', :MyLib))
+
+  CLOBBER.include dll
+end
+

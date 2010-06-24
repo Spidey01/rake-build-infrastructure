@@ -1,0 +1,34 @@
+namespace 'vendor:foolib' do
+  require 'Rk/cbuilder'
+
+  b = VendorCBuilder.new 'foolib', 'c'
+
+  # A simple list of source files
+  sources = [ 'ham.c', 'spam.c', 'eggs.c' ]
+  objs = []
+
+  # Create file rules to compile each to an object file.
+  # Also build a list of those object files for easy use as a prerequisite.
+  #
+  for s in sources do
+    objs.push(b.obj_file(s))
+  end
+
+  # Fairly typical situation: build it, link it, install the headers
+  #
+  task :default => [ :build, :link, :headers ]
+
+  # build task depends on the object files
+  #
+  task :build => objs
+
+  # Link the object files into a shared library
+  #
+  task :link => [ b.shlib_file(b.distdir("libfoo#{b.shlibext}"), objs) ]
+
+  # Very sweet way to install header files.
+  #
+  task :headers => b.install_headers(b.srcdir('include'), 
+                                     b.distdir('include', 'foolib'))
+
+end
