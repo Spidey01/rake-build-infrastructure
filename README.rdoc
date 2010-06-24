@@ -45,7 +45,7 @@ First require the correct file from your rakefile, e.g.
 
 	require 'Rk/builder'
 
-Which will import classes named Paths, Builder, and VendorBuilder. Other builder classes should follow the same convention of supplying MyBuilder and MyVendorBuilder classes.
+Which will import classes named Paths, Builder, and VendorBuilder. Other builder classes should follow the same convention of supplying MyBuilder and VendorMyBuilder classes.
 
 
 The standard Builder class should be sufficant for most languages. It principally operates on the concept that each source file become some form of object file, which in turn will be combined to form some sort of executable or library file. This is the normal under most compiled languages such as C, C++, C#, Java, and Go.
@@ -297,7 +297,7 @@ I have made this as simple as possible.
 
 ==== Advise
 
-When applicable, name your classes {Language Name}Builder and {Language Name}VendorBuilder, and save them in Rk\{language name}builder.rb.
+When applicable, name your classes {Language Name}Builder and Vendor{Language Name}Builder, and save them in Rk\{language name}builder.rb.
 
 Create methods to look up any file extensions that may differ between implementations, like those used for object files and libraries. These should be in the form of {name}ext, for example shlibext.
 
