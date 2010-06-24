@@ -123,12 +123,12 @@ example:
 Will compile the files Foo.c and Bar.c into object files, and then create a library from them.
 
 
-Because not every programming language works the same way, these methods may not be sufficiant to build any project. For just this reason Builder can be subclassed to add aditional behaviour. In this particular example, since we are using the C programming language, we should prefer using the CBuilder class. CBuilder ads make_static_library and make_shared_library methods, among other things helpful for C like projects.
+Because not every programming language works the same way, these methods may not be sufficient to build any project. For just this reason Builder can be subclassed to add aditional behaviour. In this particular example, since we are using the C programming language, we should prefer using the CBuilder class. CBuilder ads make_static_library and make_shared_library methods, among other things helpful for C like projects.
 
 
 ==== Task Creation
 
-To make life with rake easier, you can create directory/file tasks through Builder. As a convience method, Builder provides an obj_file method that is anoglogus to rakes file method.
+To make life with rake easier, you can create directory/file tasks through Builder. As a convenience method, Builder provides an obj_file method that is analogous to rakes file method.
 
 	b.obj_file 'Foo.c'
 
@@ -170,10 +170,10 @@ This will be used to create the variables ${AR}, ${CC}, and ${LD} for later use 
 
 ===== Options
 
-In the options section, we define a nested set of mappings that define the arguments for the entries in the programs section. How this is done, is by defining a ${program name}flags mapping. What ${program name} is, is in fact irrelevent. I decided to just stick with the CFLAGS/CXXFLAGS convention that I'm accustomed to 8=). You could just as easily call it foobar instead.
+In the options section, we define a nested set of mappings that define the arguments for the entries in the programs section. How this is done, is by defining a ${program name}flags mapping. What ${program name} is, is in fact irrelevant. I decided to just stick with the CFLAGS/CXXFLAGS convention that I'm accustomed to 8=). You could just as easily call it foobar instead.
 
 
-Each member of the ${program name}flags mapping is expected to be an abritary set of key: value pairs. This was done to allow adding a construct like ${CXXFLAGS:WARNINGS} at a later date. All of the fields of ${program name}flags will be joined and made available in the commands section under a name like ${CFLAGS} where ${program name} is c.
+Each member of the ${program name}flags mapping is expected to be an arbitrary set of key: value pairs. This was done to allow adding a construct like ${CXXFLAGS:WARNINGS} at a later date. All of the fields of ${program name}flags will be joined and made available in the commands section under a name like ${CFLAGS} where ${program name} is c.
 
 Here is an example:
 
@@ -197,14 +197,14 @@ Here is an example:
 		paths: /LIBPATH:Dist\x86\win32\lib
 		warnings: /WX
 
-Which creates the variables ${ARFLAGS}, ${CFLAGS}, ${CXXFLAGS}, and ${LDFLAGS}. The various flags names were chosen to align with common conventiion. The sub keys were chosen for discriptive value.
+Which creates the variables ${ARFLAGS}, ${CFLAGS}, ${CXXFLAGS}, and ${LDFLAGS}. The various flags names were chosen to align with common convention. The sub keys were chosen for descriptive value.
 
 
 This is *very* flexible.
 
 ===== Extensions
 
-Because this is all designed to be used with rake, and different implementations of C/C++ can differ in details, like whether it is objectfile.o or objectfile.obj, a section like this was neccessary for convenience
+Because this is all designed to be used with rake, and different implementations of C/C++ can differ in details, like whether it is objectfile.o or objectfile.obj, a section like this was necessary for convenience
 
 
 The extension section consists of a map of language codes, which in turn map to a list of extensions. Most of this part is specific to a specialised Builder sub class. For simplicity, the standard Builder class only relies on the 'source' and 'object' extensions for the language code. These extension can be accessed with the Builder#objext and Builder#language methods. Sub classes such as CBuilder can provide other useful things, like a shlibext method.
@@ -221,7 +221,7 @@ Here is an example for C++:
 		staticlib: .lib
 		sharedlib: .dll
 
-Which will equip CBuilder with the neccessary extension infomation
+Which will equip CBuilder with the necessary extension information
 
 ==== Commands
 
@@ -230,7 +230,7 @@ It would be rather hard to build software without being able to define what comm
 Each element for language code,, is expected to be a mapping of commands to command line expressions.  In fact the standard builder methods make_object, make_executable, and make_library expect the commands to be named exactly the same!
 
 
-Each top level key under programs, options, and template_vars sections can be accessed as ${KEY NAME}. Namely the cxxflags option becomes ${CXXFLAGS}, and so on. Any occurence of the variable in a command line expression, will be expanded before execution.
+Each top level key under programs, options, and template_vars sections can be accessed as ${KEY NAME}. Namely the cxxflags option becomes ${CXXFLAGS}, and so on. Any occurrence of the variable in a command line expression, will be expanded before execution.
 		
 
 Example:
@@ -244,7 +244,7 @@ Example:
 		make_shared_library:
 		    ${CXX} ${XXCFLAGS} /LD /Fe"${TARGET}" ${SOURCE} /link ${LDFLAGS}
 
-Would provide suitable instructions for Builder to compile objects using Visual C++. Again, in this case the CBuilder class should have been prefered.
+Would provide suitable instructions for Builder to compile objects using Visual C++. Again, in this case the CBuilder class should have been preferred.
 
 
 
@@ -252,7 +252,7 @@ The ${TARGET} and ${SOURCE} variables are the first and second arguments to thei
 
 ==== Template Variables
 
-The template_vars section is a solution to an irksome problem. Here is the rational behind it: Unix compilers expect arguments like -lname and some compilers (msvc) expect name.lib. For portability sake, we keep constructos like shlib_file simple (compiler agnostic), and implementing something like a GccBuilder and MsvcBuilder class are the **wrong** solutions.
+The template_vars section is a solution to an irksome problem. Here is the rational behind it: Unix compilers expect arguments like -lname and some compilers (msvc) expect name.lib. For portability sake, we keep constructs like shlib_file simple (compiler agnostic), and implementing something like a GccBuilder and MsvcBuilder class are the **wrong** solutions.
 
 How I have solved this problem, is by simulating a minor level of indirection. 
 
