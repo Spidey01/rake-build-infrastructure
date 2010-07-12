@@ -56,7 +56,7 @@ class Builder
 
       make_thing('make_executable', '${TARGET}' => exe,
                                     '${SOURCE}' => objs.join(' '),
-                                    '${LIBS_TEMPLATE}' => libsfilter,)
+                                    '${LIBS_TEMPLATE}' => libsfilter)
     end
 
     def make_library name, objs
@@ -141,7 +141,7 @@ class Builder
   protected
 
     def setup_toolset
-      @toolset = ENV[:toolset]
+      @toolset = ENV['toolset']
 
       return if @toolset
 
@@ -158,8 +158,9 @@ class Builder
 
     def setup_paths modname
       @paths = Paths.new(File.join('Source', modname),
-                         File.join('Build', @cpu, @os, @toolset, modname),
-                         File.join('Dist', @cpu, @os, @toolset))
+                         File.join('Build', "#{@cpu}", "#{@os}", 
+                                   "#{@toolset}", modname),
+                         File.join('Dist', "#{@cpu}", "#{@os}", "#{@toolset}"))
     end
 
     def setup_conf lang, modname

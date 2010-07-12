@@ -102,8 +102,9 @@ class VendorCBuilder < CBuilder
       v = 'Vendor'
 
       @paths = Paths.new(File.join(v, modname, 'src'),
-                         File.join('Build', @cpu, @os, @toolset, v, modname),
-                         File.join('Dist', @cpu, @os, @toolset))
+                         File.join('Build', "#{@cpu}", "#{@os}", 
+                                   "#{@toolset}", v, modname),
+                         File.join('Dist', "#{@cpu}", "#{@os}", "#{@toolset}"))
     end
 end
 
