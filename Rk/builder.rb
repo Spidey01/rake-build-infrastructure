@@ -30,6 +30,7 @@ class Builder
     # settings defined for language 'lang'.
     #
     def initialize modname, lang
+      require 'rubygems'
       require 'platform'
 
       @cpu = Platform::ARCH
