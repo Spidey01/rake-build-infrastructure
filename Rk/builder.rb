@@ -233,13 +233,14 @@ class Builder
       ns
     end
 
-    def make_thing thing, evars, cb=nil
+    def make_thing thing, evars
       begin
         c = expand @data['commands'][@language][thing], evars
         sh c
         #puts "\n\n#{c}\n\n"
       rescue NoMethodError
         puts 'Build settings missing or incorrect for language ' + @language
+        puts "$!: #{$!}"
       end
     end
 
@@ -309,12 +310,12 @@ class Builder
       File.join d, *f
     end
 
-    def libstoflags libs
+    def libstoflags libs, filter
       t = @data['template_vars']['libs_template']
       ls = ''
 
       for l in libs do
-        ls << t.gsub('${LIB}', l) << " "
+        ls << t.gsub('${LIB}', filter.call(l)) << " "
       end
 
       ls
