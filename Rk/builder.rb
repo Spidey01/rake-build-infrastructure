@@ -40,6 +40,7 @@ class Builder
         @os = Platform::IMPL
       end
 
+      @vars = Hash.new
       setup_toolset
       setup_paths modname
       setup_conf lang, modname
@@ -152,7 +153,7 @@ class Builder
         when :win32
           @toolset = 'msvc'
         else 
-          @toolset = :unknown
+          @toolset = 'unknown'
       end
 
     end
@@ -166,17 +167,31 @@ class Builder
 
     def setup_conf lang, modname
       @language = lang
-      yamlconf = "#{@cpu}.#{@os}.#{@toolset}.yml"
+      yamlconf = nil
+      checkconfs = [ "#{@cpu}.#{@os}.#{@toolset}.yml",
+                     "#{@cpu}.#{@os}.yml",
+                     "#{@toolset}.yml",
+      ]
+
+      for cf in checkconfs do
+        f = File.join('Rk', 'conf', cf)
+        if File.exists? f
+          yamlconf = f
+          break
+        end
+      end
+
+      # fail safe
+      yamlconf = "config.yml" unless yamlconf
 
       #
       # Load the main build settings
       #
       require 'yaml'
-      maincfg = File.join('Rk', 'conf', yamlconf)
       begin
-        @data = YAML.load_file(maincfg)
+        @data = YAML.load_file(yamlconf) || {}
       rescue Errno::ENOENT
-        Error "Missing #{maincfg}, please create it with the correct settings!"
+        Error "Missing #{yamlconf}, please create it with the correct settings!"
       end
 
       #
@@ -185,7 +200,7 @@ class Builder
       #
       begin
         @data.merge! YAML.load_file(File.join(File.dirname(srcdir()), 
-                                              'conf', yamlconf))
+                                              'conf', File.basename(yamlconf)))
       rescue Errno::ENOENT
         # pass
       end
@@ -229,7 +244,11 @@ class Builder
     end
 
     def query_ext name
-      @data['extensions'][@language][name]
+      begin
+        @data['extensions'][@language][name]
+      rescue
+        return ''
+      end
     end
 
     def setup_lut
@@ -243,32 +262,32 @@ class Builder
       #   that wouldn't process the file correctly. So use the seperate
       #   loops. It's all faster than the average monkey any way.
       #
-      @vars = Hash.new
-      @data = Hash.new
 
-      # keys in the 'programs' hash are taken as name=>command pairs.
-      # Each name written as ${NAME} in s, expand to command.
-      #
       if @data.has_key? 'programs'
+        #
+        # keys in the 'programs' hash are taken as name=>command pairs.
+        # Each name written as ${NAME} in s, expand to command.
+        #
         for prog in @data['programs'].keys do
           p = '${'+prog.upcase+'}'
           @vars[p] = @data['programs'][prog]
         end
       end
 
-      # keys in the 'options' has are taken as the following:
-      #   name => { category => options, ... }
-      #
-      # Occurences of ${NAME} in s, will be replaced with each category set
-      # for name.
-      #
       if @data.has_key? 'options'
+        #
+        # keys in the 'options' has are taken as the following:
+        #   name => { category => options, ... }
+        #
+        # Occurences of ${NAME} in s, will be replaced with each category set
+        # for name.
+        #
         for flag in @data['options'].keys do
           o = @data['options'][flag] 
           f = '${'+flag.upcase+'}'
           @vars[f] = ''
 
-          # XXX not pretty but it filters out any enter we're not looking for
+          # XXX not pretty but it filters out any entry we're not looking for
           #
           next unless o.respond_to? :[] and o.respond_to? :each_key
 
@@ -301,7 +320,7 @@ class Builder
       ls
     end
 
-    @data     = nil
+    @data     = Hash.new
     @vars     = nil
     @paths    = nil
     @cpu      = :unknown
