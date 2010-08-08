@@ -244,14 +244,16 @@ class Builder
       #   loops. It's all faster than the average monkey any way.
       #
       @vars = Hash.new
-
+      @data = Hash.new
 
       # keys in the 'programs' hash are taken as name=>command pairs.
       # Each name written as ${NAME} in s, expand to command.
       #
-      for prog in @data['programs'].keys do
-        p = '${'+prog.upcase+'}'
-        @vars[p] = @data['programs'][prog]
+      if @data.has_key? 'programs'
+        for prog in @data['programs'].keys do
+          p = '${'+prog.upcase+'}'
+          @vars[p] = @data['programs'][prog]
+        end
       end
 
       # keys in the 'options' has are taken as the following:
@@ -260,22 +262,24 @@ class Builder
       # Occurences of ${NAME} in s, will be replaced with each category set
       # for name.
       #
-      for flag in @data['options'].keys do
-        o = @data['options'][flag] 
-        f = '${'+flag.upcase+'}'
-        @vars[f] = ''
+      if @data.has_key? 'options'
+        for flag in @data['options'].keys do
+          o = @data['options'][flag] 
+          f = '${'+flag.upcase+'}'
+          @vars[f] = ''
 
-        # XXX not pretty but it filters out any enter we're not looking for
-        #
-        next unless o.respond_to? :[] and o.respond_to? :each_key
+          # XXX not pretty but it filters out any enter we're not looking for
+          #
+          next unless o.respond_to? :[] and o.respond_to? :each_key
 
-        o.each_key do |val| 
-          v = o[val]
-          if v==nil
-            Error "Assertion failed: v==nil for o[#{val}]"
-            next
+          o.each_key do |val| 
+            v = o[val]
+            if v==nil
+              Error "Assertion failed: v==nil for o[#{val}]"
+              next
+            end
+            @vars[f] += " #{v}"
           end
-          @vars[f] += " #{v}"
         end
       end
     end
@@ -297,8 +301,8 @@ class Builder
       ls
     end
 
-    @data     = Hash.new
-    @vars     = Hash.new
+    @data     = nil
+    @vars     = nil
     @paths    = nil
     @cpu      = :unknown
     @os       = :unknown
