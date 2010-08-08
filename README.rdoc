@@ -22,7 +22,7 @@ Your projects source code is expected to be in the Source directory, plus any ad
 The Rk directory stores build configuration and Ruby code. These can be loaded from your rakefiles via the usual means. At it's heart, is the Builder class and a library of utility functions.
 
 
-Settings for building your project are saved in Rk/conf/cpu.os.toolset.yml and will be used in conjunction with Build/cpu/os/toolset and Dist/cpu/os/toolset. In addition if it exists, Source/module/conf/cpu.os.toolset.yml will be loaded to override the global settings on a per-module basis.
+Settings for building your project are written as a YAML file saved in Rk/conf and will be used with the Build/cpu/os/toolset and Dist/cpu/os/toolset directories. If toolset was not specified, it defaults to unknown. The build system searches for cpu.os.toolset.yml, if that is not found it will try cpu.os.yml and finally toolset.yml. If none of those are found, config.yml is used; other wise the whole show stops.  In addition if it exists, a corresponding configuration file in Source/module/conf will be loaded to override the global settings on a per-module basis.
 
 
 == Dependencies
@@ -142,7 +142,7 @@ Customized subclasses such as CBuilder, can easily provide similar methods such 
 
 If you recall, a little while a go, I said that the Builder class loads its build settings out of a YAML file, right? Well that is how *everything* works!
 
-When Rk/conf/cpu.os.toolset.yml and the optional Source/Module/conf/cpu.os.toolset.yml file are parsed, the Builder object configures itself using the supplied 'language code' as an index into the YAML configuration.
+When the YAML configuration file in Rk/conf and the optional override file in Source/Module/conf are parsed, the Builder object configures itself using the supplied 'language code' as an index into the YAML configuration.
 
 By entering the language code, look ups will be done against that code where possible. For simplicity, I use the normal C/C++ makefile conventions, namely C and CXX prefixes and style. The actual language code can be anything you want, as long as it is a valid YAML mapping key.
 
