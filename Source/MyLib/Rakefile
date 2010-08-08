@@ -8,7 +8,7 @@ namespace :MyLib do
   #
   sources = [ 'msg.c' ]
   objs = []
-  dll = b.distdir("MyLib#{b.shlibext}")
+  dll = b.distdir("libMyLib#{b.shlibext}")
 
   # Create file rules to compile each to an object file.
   # Also build a list of those object files for easy use as a prerequisite.

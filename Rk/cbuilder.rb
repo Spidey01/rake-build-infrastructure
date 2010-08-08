@@ -1,5 +1,7 @@
 require 'rake/clean'
 require 'Rk/builder'
+require 'rubygems'
+require 'platform'
 
 #
 # A version of Builder suited for C/C++ type languages.
@@ -15,6 +17,22 @@ class CBuilder < Builder
       make_thing('make_shared_library', '${TARGET}' => dll,
                                         '${SOURCE}' => objs.join(' '),
                                         '${IMPLIB}' => implib.to_s)
+    end
+
+    def make_executable exe, objs, libs
+      libsfilter = Proc.new { |s|
+
+        libstoflags(libs, Proc.new { |l|
+          if Platform::OS == :unix && l.start_with?('lib')
+            l = l[3, l.size]
+          end
+          l
+        })
+      }
+
+      make_thing('make_executable', '${TARGET}' => exe,
+                                    '${SOURCE}' => objs.join(' '),
+                                    '${LIBS_TEMPLATE}' => libsfilter)
     end
 
     def exeext
