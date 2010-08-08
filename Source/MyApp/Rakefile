@@ -2,7 +2,7 @@ namespace :MyApp do
   require 'Rk/cbuilder'
 
   # Setup a builder for our module
-  b = CBuilder.new :MyApp, 'c'
+  b = CBuilder.new 'MyApp', 'c'
 
   # A simple list of source files
   #

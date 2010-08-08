@@ -2,7 +2,7 @@ namespace :MyLib do
   require 'Rk/cbuilder'
 
   # Setup a builder for our module
-  b = CBuilder.new :MyLib, 'c'
+  b = CBuilder.new 'MyLib', 'c'
 
   # A simple list of source files
   #
@@ -29,7 +29,7 @@ namespace :MyLib do
   task :link => [ :build, b.shlib_file(dll, objs) ]
 
   task :headers => b.install_headers(b.srcdir(), 
-                                     b.distdir('include', :MyLib))
+                                     b.distdir('include', 'MyLib'))
 
   CLOBBER.include dll
 end
